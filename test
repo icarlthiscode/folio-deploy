@@ -1,0 +1,36 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(realpath "$(dirname "$0")")"
+cd "$SCRIPT_DIR" || exit 1
+
+OS="$(uname -s)"
+PROJECT_ROOT="$(pwd)"
+if [[ "$OS" == "MINGW"* || "$OS" == "MSYS"* || "$OS" == "CYGWIN"* ]]; then
+    PROJECT_ROOT="$(pwd -W | sed 's|/|\\|g')"
+else
+    PROJECT_ROOT="$(pwd)"
+fi
+
+echo "Running BATS tests in Docker container..."
+docker run -it \
+    --name folio-tests-bats \
+    -v "$PROJECT_ROOT:/code" \
+    bats/bats:latest \
+    cli/tests/
+if [ $? -eq 0 ]; then
+    echo "BATS tests passed successfully."
+else
+    echo "BATS tests failed."
+fi
+
+echo
+docker stop folio-tests-bats >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "Failed to stop the Docker container."
+    exit 1
+fi
+docker rm folio-tests-bats >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "Failed to remove the Docker container."
+    exit 1
+fi

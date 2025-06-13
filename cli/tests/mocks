@@ -1,0 +1,149 @@
+#!/usr/bin/env bats
+
+setup_mocks() {
+    export MOCK_FILE="$(mktemp)"
+    : > "$MOCK_FILE"
+}
+export -f setup_mocks
+
+teardown_mocks() {
+    rm -f "$MOCK_FILE"
+}
+export -f teardown_mocks
+
+log_mock_call() {
+    echo "$(pwd) $*" >> "$MOCK_FILE"
+}
+export -f log_mock_call
+
+get_mock_call_count() {
+    grep -E "^\S+\s+$1\b" "$MOCK_FILE" | wc -l
+}
+export -f get_mock_call_count
+
+get_mock_call_dirs() {
+    grep -E "^\S+\s+$1\b" "$MOCK_FILE" | cut -d' ' -f1
+}
+export -f get_mock_call_dirs
+
+get_mock_call_args() {
+    grep -E "^\S+\s+$1\b" "$MOCK_FILE" | cut -d' ' -f3-
+}
+export -f get_mock_call_args
+
+get_mock_call_args_matching() {
+    local fn_name="$1"; shift
+    local required_args=("$@")
+    local call
+
+    local call_args
+    while IFS= read -r call_args; do
+        read -r -a args <<< "$call_args"
+
+        local match=1
+        for ((i=0; i < ${#required_args[@]}; i++)); do
+            local expected="${required_args[i]}"
+            local next_expected="${required_args[i+1]}"
+
+            if \
+                [[ "$expected" = --* ]] \
+                    && [ -n "$next_expected" ] \
+                    && [[ "$next_expected" != --* ]]; \
+            then
+                local found=0
+                for ((j=0; j < ${#args[@]} - 1; j++)); do
+                    if \
+                        [[ "${args[j]}" == "$expected" ]] \
+                            && [[ "${args[j+1]}" == "$next_expected" ]]; \
+                    then
+                        found=1
+                        break
+                    fi
+                done
+                if (( ! found )); then
+                    match=0
+                    break
+                fi
+                ((i++))
+            else
+                local found=0
+                for arg in "${args[@]}"; do
+                    if [[ "$arg" == "$expected" ]]; then
+                        found=1
+                        break
+                    fi
+                done
+                if (( ! found )); then
+                    match=0
+                    break
+                fi
+            fi
+        done
+
+        if (( match )); then
+            echo "$call_args"
+        fi
+    done < <(get_mock_call_args "$fn_name")
+}
+export -f get_mock_call_args_matching
+
+set_mock_state() {
+    local key="$1"
+    local value="$2"
+    echo "__STATE__ $key=$value" >> "$MOCK_FILE"
+}
+export -f set_mock_state
+
+get_mock_state() {
+    local key="$1"
+    grep "^__STATE__ $key=" "$MOCK_FILE" | tail -n 1 | cut -d'=' -f2-
+}
+export -f get_mock_state
+
+assert_mock_called_once() {
+    local count=$(get_mock_call_count "$1")
+    assert_equal $count 1 \
+        "Expected '$1' to be called once, but it was called $count times"
+}
+
+assert_mock_called_with() {
+    local fn_name="$1"; shift
+    local count=$(get_mock_call_count "$fn_name")
+    if [[ $count -lt 1 ]]; then
+        fail "Expected '$fn_name' to be called at least once."
+    fi
+
+    if [[ -z "$(get_mock_call_args_matching "$fn_name" "$@")" ]]; then
+        fail "Mock function '$fn_name' was not called with expected arguments:
+            expected: $@
+            actual: $(get_mock_call_args "$fn_name")"
+    fi
+}
+
+assert_mock_called_in_dir() {
+    local fn_name="$1"; shift
+    local expected_dir="$1"
+    local actual_dir
+    expected_dir="/code/$expected_dir"
+    actual_dirs=$(get_mock_call_dirs "$fn_name")
+    if [[ -z "$actual_dirs" ]]; then
+        fail "Mock function '$fn_name' was not called."
+    fi
+    while IFS= read -r actual_dir; do
+        if [[ "$actual_dir" == "$expected_dir" ]]; then
+            return 0
+        fi
+    done <<< "$actual_dirs"
+    fail "Mock function '$fn_name' was not called in expected directory:
+        expected: $expected_dir
+        actual: $actual_dirs"
+}
+
+assert_mock_state_equal() {
+    local key="$1"
+    local expected="$2"
+    local actual
+    actual=$(get_mock_state "$key")
+    assert_equal "$actual" "$expected" \
+        "Expected mock state '$key' to be '$expected', but got '$actual'"
+}
