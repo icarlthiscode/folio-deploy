@@ -27,6 +27,13 @@ set as an environment variable `GITHUB_NAMESPACE`.
 containerize --push --namespace <GITHUB_NAMESPACE>
 ```
 
+To prevent unnecessary `npm` package installations and preserve environment
+dependencies, the `--test` option can be added to validate the application
+during the build process.
+```bash
+containerize --test
+```
+
 ## Deployment
 The `folio` application can be deployed to a locally running Docker engine
 using the `deploy` script. This script will pull the latest image from the local

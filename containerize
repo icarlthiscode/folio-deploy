@@ -5,6 +5,7 @@
 
 while [[ "$1" != "" ]]; do
     case $1 in
+        --test ) TEST=true;;
         --push ) PUSH=true;;
         --namespace ) GITHUB_NAMESPACE="$2"; shift;;
         * ) echo "Invalid option: $1"; exit 1;;
@@ -31,12 +32,17 @@ if [ ! -d folio ]; then
     exit 1
 fi
 cd folio
-npm install
-if [ $? -ne 0 ]; then
-    echo "Failed to install dependencies."
-    exit 1
+
+if [ "$TEST" = true ]; then
+    source ./validate
+else
+    npm install
+    if [ $? -ne 0 ]; then
+        echo "Failed to install dependencies."
+        exit 1
+    fi
+    echo "Dependencies installed successfully."
 fi
-echo "Dependencies installed successfully."
 
 npm run build
 if [ $? -ne 0 ]; then
