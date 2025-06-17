@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Run the Folio application tests.
+
+SCRIPT_DIR=$(realpath "$(dirname "$0")")
+cd "$SCRIPT_DIR" || exit 1
+
+if [ ! -d folio ]; then
+    echo "Error: 'folio' directory does not exist."
+    exit 1
+fi
+cd folio
+
+npm install
+if [ $? -ne 0 ]; then
+    echo "Failed to install dependencies."
+    exit 1
+fi
+echo "Dependencies installed successfully."
+
+npm run test
+if [ $? -ne 0 ]; then
+    echo "Tests failed."
+    exit 1
+fi
+echo "All tests passed successfully."
