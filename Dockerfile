@@ -3,6 +3,12 @@
 FROM node:24-alpine
 
 ARG PORT=3000
+ARG NAMESPACE
+ARG VERSION
+
+LABEL org.opencontainers.image.source=https://github.com/${NAMESPACE}/folio
+LABEL org.opencontainers.image.version=${VERSION}
+LABEL org.opencontainers.image.license=MIT
 
 WORKDIR /app
 USER node
