@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Destroy the Folio SvelteKit application running in a Docker container.
+
+if [[ -n "$(docker ps -q -f name=folio)" ]]; then
+    echo "Stopping and removing the Folio container..."
+    docker stop folio > /dev/null
+    if [ $? -ne 0 ]; then
+        echo "Failed to stop the Folio container."
+        exit 1
+    fi
+    docker rm folio > /dev/null
+    if [ $? -ne 0 ]; then
+        echo "Failed to stop and remove the Folio container."
+        exit 1
+    fi
+    echo "Folio container stopped and removed successfully."
+else
+    echo "No running Folio container found."
+fi

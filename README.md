@@ -18,3 +18,18 @@ set as an environment variable `GITHUB_NAMESPACE`.
 ```bash
 containerize --push --namespace <GITHUB_NAMESPACE>
 ```
+
+## Deployment
+The `folio` application can be deployed to a locally running Docker engine
+using the `deploy` script. This script will pull the latest image from the local
+Docker registry or the GitHub Packages registry and run it in a container on
+port `3000`.
+```bash
+deploy
+```
+
+To cleanup the running container, run the `destroy` script, which will stop and
+remove the container running the `folio` application.
+```bash
+destroy
+```

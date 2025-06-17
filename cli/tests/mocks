@@ -31,6 +31,11 @@ get_mock_call_args() {
 }
 export -f get_mock_call_args
 
+get_last_mock_call_args() {
+    grep -E "^\S+\s+$1\b" "$MOCK_FILE" | tail -n 1 | cut -d' ' -f3-
+}
+export -f get_last_mock_call_args
+
 get_mock_call_args_matching() {
     local fn_name="$1"; shift
     local required_args=("$@")
@@ -99,6 +104,12 @@ get_mock_state() {
     grep "^__STATE__ $key=" "$MOCK_FILE" | tail -n 1 | cut -d'=' -f2-
 }
 export -f get_mock_state
+
+assert_mock_not_called() {
+    local count=$(get_mock_call_count "$1")
+    assert_equal $count 0 \
+        "Expected '$1' to not be called, but it was called $count times"
+}
 
 assert_mock_called_once() {
     local count=$(get_mock_call_count "$1")
