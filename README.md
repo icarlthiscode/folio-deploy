@@ -4,6 +4,14 @@ deploying the [`folio`](https://github.com/icarlthiscode/folio) application. The
 application is built and bundled using the *SvelteKit* *Node.js" adapter and the
 output is containerized into a *Docker* image.
 
+## Validation
+Before building the application, you can validate the application code using
+the `validate` script. This script will run all tests defined in the `folio`
+application.
+```bash
+validate
+```
+
 ## Build & Containerization
 To build and containerize a deployable application, run the provided
 containerization script. If successful, the script resulting image will be
