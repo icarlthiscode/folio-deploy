@@ -76,6 +76,12 @@ echo "App user configured."
 
 echo "Configuring Caddy..."
 cat <<EOF > /home/app/Caddyfile
+%{ if environment != "production" }
+{
+    acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+%{ endif }
 ${hostname} {
     reverse_proxy folio:3000
 }

@@ -7,6 +7,7 @@ usage() {
     echo "Usage: $0 [options]"
     echo "Options:"
     echo "  --local         Destroy the local environment"
+    echo "  --staging       Deploy with staging configuration"
     echo "  --approve       Automatically approve destruction"
     echo "  --namespace     Specify the GitHub namespace for the Docker image"
     echo "  --domain        Specify the domain for the application"
@@ -17,6 +18,8 @@ usage() {
     echo "  --do-token      Specify the DigitalOcean API token"
     echo "  --help, -h      Show this help message"
     echo "Environment variables:"
+    echo "  ENVIRONMENT         Deployment configuration (default: production)"
+    echo "                      Options: production, staging"
     echo "  GITHUB_NAMESPACE    GitHub namespace for the Docker image."
     echo "  CF_DNS_ZONE         Cloudflare DNS zone ID for the domain."
     echo "  PUBLIC_KEY_FILE     Path to the SSH public key file."
@@ -36,6 +39,7 @@ while [[ "$1" != "" ]]; do
     case "$1" in
         --help|-h) usage; exit 0;;
         --local) LOCAL=true;;
+        --staging) ENVIRONMENT="staging";;
         --approve) APPROVE=true;;
         --namespace) GITHUB_NAMESPACE="$2"; shift;;
         --domain) DOMAIN="$2"; shift;;
@@ -48,6 +52,10 @@ while [[ "$1" != "" ]]; do
     esac
     shift
 done
+
+if [ -z "$ENVIRONMENT" ]; then
+    ENVIRONMENT="production"
+fi
 
 if [ -z "$LOCAL" ]; then
     echo "Deploying to production environment..."
@@ -94,6 +102,7 @@ if [ -z "$LOCAL" ]; then
     fi
 
     terraform destroy \
+        -var "environment=$ENVIRONMENT" \
         -var "namespace=$GITHUB_NAMESPACE" \
         -var "domain=$DOMAIN" \
         -var "dns_zone=$CF_DNS_ZONE" \

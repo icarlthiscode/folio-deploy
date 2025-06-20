@@ -37,6 +37,7 @@ resource "digitalocean_droplet" "app" {
     user_data = templatefile(
         "${path.module}/cloud-init.tftpl",
         {
+            environment = var.environment,
             ssh_port = var.ssh_port,
             ssh_public_key = file(var.ssh_public_key_file),
             hostname = var.domain,

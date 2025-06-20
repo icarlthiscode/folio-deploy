@@ -1,3 +1,9 @@
+variable "environment" {
+    description = "The environment type for the deployment."
+    type = string
+    default = "production"
+}
+
 variable "namespace" {
     description = "The namespace for the application."
     type = string
