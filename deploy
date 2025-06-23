@@ -17,6 +17,7 @@ if [ -z "$LOCAL" ]; then
     fi
     echo "Deploying to production environment..."
     terraform plan -out=tfplan \
+        -var "environment=$ENVIRONMENT" \
         -var "namespace=$GITHUB_NAMESPACE" \
         -var "domain=$APPLICATION_DOMAIN" \
         -var "dns_zone=$CF_DNS_ZONE" \

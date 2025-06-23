@@ -21,6 +21,10 @@ while [[ "$1" != "" ]]; do
     shift
 done
 
+if [ -z "$ENVIRONMENT" ]; then
+    ENVIRONMENT="production"
+fi
+
 if [ -z "$GITHUB_NAMESPACE" ]; then
     echo "Error: --namespace argument is required."
     usage

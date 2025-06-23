@@ -11,6 +11,7 @@ source ./cli/deploy-input
 if [ -z "$LOCAL" ]; then
     echo "Destroying production environment..."
     terraform destroy \
+        -var "environment=$ENVIRONMENT" \
         -var "namespace=$GITHUB_NAMESPACE" \
         -var "domain=$APPLICATION_DOMAIN" \
         -var "dns_zone=$CF_DNS_ZONE" \
