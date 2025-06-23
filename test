@@ -7,14 +7,17 @@ OS="$(uname -s)"
 PROJECT_ROOT="$(pwd)"
 if [[ "$OS" == "MINGW"* || "$OS" == "MSYS"* || "$OS" == "CYGWIN"* ]]; then
     PROJECT_ROOT="$(pwd -W | sed 's|/|\\|g')"
+    TEST_ENV="$PROJECT_ROOT\\cli\\tests\\test.env"
 else
     PROJECT_ROOT="$(pwd)"
+    TEST_ENV="$PROJECT_ROOT/cli/tests/test.env"
 fi
 
 echo "Running BATS tests in Docker container..."
 docker run -it \
     --name folio-tests-bats \
     -v "$PROJECT_ROOT:/code" \
+    -v "$TEST_ENV:/code/.env" \
     bats/bats:latest \
     cli/tests/
 if [ $? -eq 0 ]; then

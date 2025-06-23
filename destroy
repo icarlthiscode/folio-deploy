@@ -1,6 +1,30 @@
 #!/bin/bash
 
-# Destroy the Folio SvelteKit application running in a Docker container.
+# Destroy the Folio SvelteKit application running on a cloud server or a
+# local Docker container.
+
+SCRIPT_DIR="$(realpath "$(dirname "$0")")"
+cd "$SCRIPT_DIR" || exit 1
+
+source ./cli/deploy-input
+
+if [ -z "$LOCAL" ]; then
+    echo "Destroying production environment..."
+    terraform destroy \
+        -var "namespace=$GITHUB_NAMESPACE" \
+        -var "domain=$APPLICATION_DOMAIN" \
+        -var "dns_zone=$CF_DNS_ZONE" \
+        -var "ssh_port=$SSH_PORT" \
+        -var "ssh_public_key_file=$PUBLIC_KEY_FILE" \
+        -var "cf_token=$CF_TOKEN" \
+        -var "do_token=$DO_TOKEN"
+    if [ $? -ne 0 ]; then
+        echo "Failed to destroy the production environment."
+        exit 1
+    fi
+    echo "Production environment destroyed successfully."
+    exit 0
+fi
 
 if [[ -n "$(docker ps -q -f name=folio)" ]]; then
     echo "Stopping and removing the Folio container..."

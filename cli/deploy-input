@@ -1,0 +1,84 @@
+#!/bin/bash
+
+usage() {
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  --local         Target the local environment"
+    echo "  --approve       Automatically approve changes"
+    echo "  --namespace     Specify the GitHub namespace for the Docker image"
+    echo "  --domain        Specify the domain for the application"
+    echo "  --dns-zone      Specify the Cloudflare zone for DNS records"
+    echo "  --ssh-port      Specify the SSH port for the server"
+    echo "  --public-key    Specify the SSH public key file for the server"
+    echo "  --cf-token      Specify the Cloudflare API token"
+    echo "  --do-token      Specify the DigitalOcean API token"
+    echo "  --help, -h      Show this help message"
+    echo "Environment variables:"
+    echo "  GITHUB_NAMESPACE    GitHub namespace for the Docker image."
+    echo "  APPLICATION_DOMAIN  Domain for hosting the application."
+    echo "  CF_DNS_ZONE         Cloudflare DNS zone ID for the domain."
+    echo "  SSH_PORT            SSH port for the server (default: 22)."
+    echo "  PUBLIC_KEY_FILE     Path to the SSH public key file."
+    echo "  CF_TOKEN            Cloudflare API token for DNS management."
+    echo "  DO_TOKEN            DigitalOcean API token for server management."
+}
+
+if [ -f .env ]; then
+    echo "Loading environment variables from .env file..."
+    source .env
+fi
+
+while [[ "$1" != "" ]]; do
+    case "$1" in
+        --help|-h) usage; exit 0;;
+        --local) LOCAL=true;;
+        --approve) APPROVE=true;;
+        --namespace) GITHUB_NAMESPACE="$2"; shift;;
+        --domain) APPLICATION_DOMAIN="$2"; shift;;
+        --dns-zone) CF_DNS_ZONE="$2"; shift;;
+        --ssh-port) SSH_PORT="$2"; shift;;
+        --public-key) PUBLIC_KEY_FILE="$2"; shift;;
+        --cf-token) CF_TOKEN="$2"; shift;;
+        --do-token) DO_TOKEN="$2"; shift;;
+        *) echo "Unknown option: $1"; exit 1;;
+    esac
+    shift
+done
+
+if [ -z "$LOCAL" ]; then
+    if [ -z "$GITHUB_NAMESPACE" ]; then
+        echo "Error: GitHub namespace required to target remote environment."
+        usage
+        exit 1
+    fi
+    if [ -z "$APPLICATION_DOMAIN" ]; then
+        echo "Error: Domain required to target remote environment."
+        usage
+        exit 1
+    fi
+    if [ -z "$CF_DNS_ZONE" ]; then
+        echo "Error: Cloudflare DNS zone required to target remote environment."
+        usage
+        exit 1
+    fi
+    if [ -z "$PUBLIC_KEY_FILE" ]; then
+        echo "Error: Public key file required to target remote environment."
+        usage
+        exit 1
+    fi
+    if [ -z "$CF_TOKEN" ]; then
+        echo "Error: Cloudflare token required to target remote environment."
+        usage
+        exit 1
+    fi
+    if [ -z "$DO_TOKEN" ]; then
+        echo "Error: DigitalOcean token required to target remote environment."
+        usage
+        exit 1
+    fi
+
+    if ! command -v terraform &> /dev/null; then
+        echo "Terraform is not installed. Please install Terraform to proceed."
+        exit 1
+    fi
+fi

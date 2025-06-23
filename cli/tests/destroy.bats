@@ -27,10 +27,30 @@ docker() {
 }
 export -f docker
 
+terraform() {
+    if [[ "$1" == "destroy" ]]; then
+        shift
+        log_mock_call "terraform_destroy" "$@"
+    else
+        log_mock_call "terraform" "$@"
+    fi
+}
+export -f terraform
+
 setup() {
     bats_load_library bats-support
     bats_load_library bats-assert
     setup_mocks
+}
+
+setup_remote_env() {
+    export GITHUB_NAMESPACE="test-namespace"
+    export APPLICATION_DOMAIN="example.test"
+    export CF_DNS_ZONE="abc123"
+    export PUBLIC_KEY_FILE="/path/to/public_key.pub"
+    export CF_TOKEN="cf_token"
+    export DO_TOKEN="do_token"
+    export SSH_PORT="2222"
 }
 
 teardown() {
@@ -59,4 +79,107 @@ teardown() {
     assert_mock_called_with "docker_stop" "folio"
     assert_mock_called_once "docker_rm"
     assert_mock_called_with "docker_rm" "folio"
+}
+
+@test "destroys remotely" {
+    setup_remote_env
+    run ./destroy <<< "yes"
+    assert_success
+    assert_output --partial "Production environment destroyed successfully."
+}
+
+@test "requires namespace for remote destroy" {
+    setup_remote_env
+    unset GITHUB_NAMESPACE
+    run ./destroy <<< "yes"
+    assert_failure
+    assert_output --partial \
+        "Error: GitHub namespace required to target remote environment."
+}
+
+@test "requires domain for remote destroy" {
+    setup_remote_env
+    unset APPLICATION_DOMAIN
+    run ./destroy <<< "yes"
+    assert_failure
+    assert_output --partial \
+        "Error: Domain required to target remote environment."
+}
+
+@test "requires Cloudflare DNS zone for remote destroy" {
+    setup_remote_env
+    unset CF_DNS_ZONE
+    run ./destroy <<< "yes"
+    assert_failure
+    assert_output --partial \
+        "Error: Cloudflare DNS zone required to target remote environment."
+}
+
+@test "requires public key file for remote destroy" {
+    setup_remote_env
+    unset PUBLIC_KEY_FILE
+    run ./destroy <<< "yes"
+    assert_failure
+    assert_output --partial \
+        "Error: Public key file required to target remote environment."
+}
+
+@test "requires Cloudflare token for remote destroy" {
+    setup_remote_env
+    unset CF_TOKEN
+    run ./destroy <<< "yes"
+    assert_failure
+    assert_output --partial \
+        "Error: Cloudflare token required to target remote environment."
+}
+
+@test "requires DigitalOcean token for remote destroy" {
+    setup_remote_env
+    unset DO_TOKEN
+    run ./destroy <<< "yes"
+    assert_failure
+    assert_output --partial \
+        "Error: DigitalOcean token required to target remote environment."
+}
+
+@test "accepts as option" {
+    setup_remote_env
+    run ./destroy <<< "yes" --namespace test-namespace
+    assert_success
+    assert_output --partial "Production environment destroyed successfully."
+}
+
+@test "accepts domain as option" {
+    setup_remote_env
+    run ./destroy <<< "yes" --domain example.test
+    assert_success
+    assert_output --partial "Production environment destroyed successfully."
+}
+
+@test "accepts Cloudflare DNS zone as option" {
+    setup_remote_env
+    run ./destroy <<< "yes" --dns-zone abc123
+    assert_success
+    assert_output --partial "Production environment destroyed successfully."
+}
+
+@test "accepts public key file as option" {
+    setup_remote_env
+    run ./destroy <<< "yes" --public-key /path/to/public_key.pub
+    assert_success
+    assert_output --partial "Production environment destroyed successfully."
+}
+
+@test "accepts Cloudflare token as option" {
+    setup_remote_env
+    run ./destroy <<< "yes" --cf-token cf_token
+    assert_success
+    assert_output --partial "Production environment destroyed successfully."
+}
+
+@test "accepts DigitalOcean token as option" {
+    setup_remote_env
+    run ./destroy <<< "yes" --do-token do_token
+    assert_success
+    assert_output --partial "Production environment destroyed successfully."
 }

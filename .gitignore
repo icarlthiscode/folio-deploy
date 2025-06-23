@@ -1,0 +1,10 @@
+# Local configuration files
+.env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+tfplan

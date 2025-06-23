@@ -1,22 +1,49 @@
 #!/bin/bash
 
-# Deploy the Folio SvelteKit application to a local Docker container.
+# Deploy the Folio SvelteKit application to either a cloud server or a local
+# Docker container.
 
-usage() {
-    echo "Usage: $0 [--namespace <github-namespace>]"
-    echo "Options:"
-    echo "  --namespace     Specify the GitHub namespace for the Docker image"
-    echo "Environment variables:"
-    echo "  GITHUB_NAMESPACE    GitHub namespace for the Docker image."
-}
+SCRIPT_DIR="$(realpath "$(dirname "$0")")"
+cd "$SCRIPT_DIR" || exit 1
 
-while $1; do
-    case "$1" in
-        --namespace) GITHUB_NAMESPACE="$2"; shift;;
-        *) echo "Unknown option: $1"; exit 1;;
-    esac
-    shift
-done
+source ./cli/deploy-input
+
+if [ -z "$LOCAL" ]; then
+    echo "Initializing Terraform..."
+    terraform init
+    if [ $? -ne 0 ]; then
+        echo "Failed to initialize Terraform."
+        exit 1
+    fi
+    echo "Deploying to production environment..."
+    terraform plan -out=tfplan \
+        -var "namespace=$GITHUB_NAMESPACE" \
+        -var "domain=$APPLICATION_DOMAIN" \
+        -var "dns_zone=$CF_DNS_ZONE" \
+        -var "ssh_port=$SSH_PORT" \
+        -var "ssh_public_key_file=$PUBLIC_KEY_FILE" \
+        -var "cf_token=$CF_TOKEN" \
+        -var "do_token=$DO_TOKEN"
+    if [ $? -ne 0 ]; then
+        echo "Failed to create Terraform plan."
+        exit 1
+    fi
+    if [ "$APPROVE" != true ]; then
+        echo "Deploy $ENVIRONMENT configuration to $APPLICATION_DOMAIN? (y/n)"
+        read -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            echo "Deployment aborted."
+            exit 0
+        fi
+    fi
+    terraform apply tfplan
+    if [ $? -ne 0 ]; then
+        echo "Failed to apply Terraform plan."
+        exit 1
+    fi
+    echo "Deployment of $ENVIRONMENT completed successfully."
+    exit 0
+fi
 
 if docker image inspect folio:latest > /dev/null 2>&1; then
     docker run -d \

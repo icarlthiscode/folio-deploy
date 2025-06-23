@@ -1,0 +1,99 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "Starting deployment cloud-init script..."
+
+echo "Updating System Packages..."
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get -o Dpkg::Options::="--force-confold" -y upgrade
+echo "Packeges updated."
+
+echo "Installing ufw..."
+apt-get install ufw -y
+echo "UFW installed."
+
+echo "Installing Docker and Dependencies..."
+apt-get install ca-certificates curl
+echo "Docker dependencies installed."
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg \
+    -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) \
+    signed-by=/etc/apt/keyrings/docker.asc] \
+    https://download.docker.com/linux/debian \
+    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+        tee /etc/apt/sources.list.d/docker.list > /dev/null
+apt-get update
+apt-get install docker-ce docker-ce-cli containerd.io \
+    docker-buildx-plugin docker-compose-plugin -y
+echo "Docker installed."
+
+echo "Cleaning up packages..."
+apt autoremove -y
+apt clean -y
+echo "Packages cleaned."
+
+echo "Configuring SSH..."
+sed -i 's/^#Port 22/Port '"${ssh_port}"'/' /etc/ssh/sshd_config
+sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+if ls /etc/ssh/ssh_config.d/*.conf 1> /dev/null 2>&1; then
+    rm -r /etc/ssh/ssh_config.d/*.conf
+fi
+echo "SSH configured."
+systemctl restart sshd
+echo "SHH service restarted."
+
+echo "Configuring UFW..."
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow ${ssh_port}/tcp
+ufw allow 80/tcp
+ufw allow 443/tcp
+echo "UFW configured."
+ufw --force enable
+echo "UFW enabled."
+
+echo "Initializing Docker..."
+systemctl start docker
+systemctl enable docker
+echo "Docker initialized and enabled."
+
+echo "Creating app user..."
+useradd -m -s /bin/bash app
+echo "App user created."
+mkdir -p /home/app/.ssh
+cat <<EOF > /home/app/.ssh/authorized_keys
+${ssh_public_key}
+EOF
+echo "SSH public key added."
+chown -R app:app /home/app/.ssh
+chmod 700 /home/app/.ssh
+chmod 600 /home/app/.ssh/authorized_keys
+usermod -aG docker app
+echo "App user configured."
+
+echo "Configuring Caddy..."
+cat <<EOF > /home/app/Caddyfile
+${hostname} {
+    reverse_proxy folio:3000
+}
+EOF
+chown app:app /home/app/Caddyfile
+echo "Caddyfile created."
+
+echo "Initializing Docker Network and Containers..."
+su - app -c "docker network create web"
+su - app -c "docker run -d \
+    --name caddy \
+    --network web \
+    --restart always \
+    -p 80:80 \
+    -p 443:443 \
+    -v /home/app/Caddyfile:/etc/caddy/Caddyfile \
+    caddy:latest"
+su - app -c "docker run -d \
+    --name folio \
+    --network web \
+    ${app_package}"
