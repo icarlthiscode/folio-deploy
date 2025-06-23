@@ -40,12 +40,21 @@ if [ ! -d folio ]; then
     exit 1
 fi
 cd folio
+
 npm install
 if [ $? -ne 0 ]; then
     echo "Failed to install dependencies."
     exit 1
 fi
 echo "Dependencies installed successfully."
+
+echo "Running automated application tests..."
+npm run test
+if [ $? -ne 0 ]; then
+    echo "Automated tests failed. Aborting build."
+    exit 1
+fi
+echo "Automated tests passed successfully."
 
 npm run build
 if [ $? -ne 0 ]; then
