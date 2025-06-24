@@ -11,3 +11,10 @@ tagged as `folio:latest` and pushed to the local Docker registry.
 ```bash
 containerize
 ```
+
+To push to the GitHub Packages registry, option `--push` can be used. To push to
+the registry, a GitHub namespace must passed as an argument to the script or be
+set as an environment variable `GITHUB_NAMESPACE`.
+```bash
+containerize --push --namespace <GITHUB_NAMESPACE>
+```

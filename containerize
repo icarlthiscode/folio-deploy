@@ -3,8 +3,37 @@
 # Containerize the `folio` SvelteKit application. Before building the Docker
 # image, ensure that dependencies and application build is up-to-date.
 
+usage() {
+    echo "Usage: $0 [--push] --namespace <github-namespace>"
+    echo "Options:"
+    echo "  --push              Push image to GitHub Container Registry."
+    echo "  --namespace         Specify the GitHub namespace for image."
+    echo "Environment Variables:"
+    echo "  GITHUB_NAMESPACE    The GitHub namespace to use for image."
+}
+
+while [[ "$1" != "" ]]; do
+    case $1 in
+        --push ) PUSH=true;;
+        --namespace ) GITHUB_NAMESPACE="$2"; shift;;
+        * ) echo "Invalid option: $1"; exit 1;;
+    esac
+    shift
+done
+
+if [ -z "$GITHUB_NAMESPACE" ]; then
+    echo "Error: --namespace argument is required."
+    usage
+    exit 1
+fi
+
+VERSION=$(grep '"version"' folio/package.json \
+    | head -1 \
+    | sed -E 's/.*"version": *"([^"]+)".*/\1/')
+
 echo
 echo "Building SvelteKit application..."
+echo "Version: $VERSION"
 
 if [ ! -d folio ]; then
     echo "Error: 'folio' directory does not exist."
@@ -28,9 +57,37 @@ cd ..
 
 echo
 echo "Building Docker image..."
-docker build -t folio:latest .
-if [ $? -ne 0 ]; then
-    echo "Failed to build Docker image."
-    exit 1
+if [ "$PUSH" = true ]; then
+    echo "Pushing Docker image to GitHub as '$GITHUB_NAMESPACE/folio:$VERSION'."
+    docker build -t "ghcr.io/$GITHUB_NAMESPACE/folio:latest" \
+        -t "ghcr.io/$GITHUB_NAMESPACE/folio:$VERSION" \
+        --build-arg GITHUB_NAMESPACE="${GITHUB_NAMESPACE}" \
+        --build-arg VERSION="${VERSION}" \
+        -f Dockerfile .
+    if [ $? -ne 0 ]; then
+        echo "Failed to build Docker image."
+        exit 1
+    fi
+    echo "Docker image built successfully."
+    echo "Pushing Docker image to GitHub Container Registry..."
+    docker push "ghcr.io/$GITHUB_NAMESPACE/folio:$VERSION" \
+        && docker push "ghcr.io/$GITHUB_NAMESPACE/folio:latest"
+    if [ $? -ne 0 ]; then
+        echo "Failed to push Docker image."
+        exit 1
+    fi
+    echo "Docker image pushed successfully."
+else
+    echo "Storing Docker image locally as 'folio:latest'."
+    docker build -t folio:latest \
+        -t folio:"$VERSION" \
+        --build-arg GITHUB_NAMESPACE="${GITHUB_NAMESPACE}" \
+        --build-arg VERSION="${VERSION}" \
+        -f Dockerfile .
+    if [ $? -ne 0 ]; then
+        echo "Failed to build Docker image."
+        exit 1
+    fi
+    echo "Docker image built successfully."
 fi
 echo "Docker image built successfully."
